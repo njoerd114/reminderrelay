@@ -1,0 +1,29 @@
+{
+  "$schema": "https://raw.githubusercontent.com/jetify-com/devbox/0.16.0/.schema/devbox.schema.json",
+  "packages": [
+    "go@1.24",
+    "just@latest",
+    "golangci-lint@latest",
+    "sqlite@latest",
+    "pkg-config@latest"
+  ],
+  "env": {
+    "CGO_ENABLED": "1",
+    "GOPATH": "$HOME/go",
+    "GOBIN": "$HOME/go/bin"
+  },
+  "shell": {
+    "init_hook": [
+      "export PATH=$GOBIN:$PATH",
+      "echo 'ReminderRelay dev environment ready. Run `just --list` to see available recipes.'"
+    ],
+    "scripts": {
+      "build":    ["just build"],
+      "test":     ["just test"],
+      "lint":     ["just lint"],
+      "run":      ["just run"],
+      "install":  ["just install"],
+      "clean":    ["just clean"]
+    }
+  }
+}

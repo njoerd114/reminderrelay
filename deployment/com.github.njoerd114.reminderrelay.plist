@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Identity -->
+    <key>Label</key>
+    <string>com.github.njoerd114.reminderrelay</string>
+
+    <!-- Binary & arguments -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/reminderrelay</string>
+        <string>--daemon</string>
+    </array>
+
+    <!-- Lifecycle -->
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+
+    <!-- Logging: stdout/stderr go to ~/Library/Logs/reminderrelay/ -->
+    <key>StandardOutPath</key>
+    <string>__HOME__/Library/Logs/reminderrelay/output.log</string>
+    <key>StandardErrorPath</key>
+    <string>__HOME__/Library/Logs/reminderrelay/errors.log</string>
+
+    <!-- Throttle restarts if the daemon crashes immediately -->
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+</dict>
+</plist>

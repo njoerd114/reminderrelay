@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    name: Build, Lint & Test
+    runs-on: macos-latest # cgo + EventKit framework requires macOS
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install devbox
+        uses: jetify-com/devbox-install-action@v0.12.0
+        with:
+          enable-cache: true
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Build
+        run: devbox run -- just build
+
+      - name: Lint
+        run: devbox run -- just lint
+
+      - name: Test
+        run: devbox run -- just test
+        # Integration tests are excluded — they require a live Reminders + HA
+        # instance. Run locally with: just test-integration

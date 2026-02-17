@@ -1,0 +1,31 @@
+# Planning docs (local only)
+PLAN.md
+IMPLEMENTATION_PLAN.md
+
+# Binary
+reminderrelay
+
+# Runtime data
+state.db
+state.db-shm
+state.db-wal
+errors.log
+
+# Config (contains secrets)
+.env
+config.yaml
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Go
+vendor/
+
+# devbox runtime (nix store links — lock file is committed, this dir is not)
+.devbox/

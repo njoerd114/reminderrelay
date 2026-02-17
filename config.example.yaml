@@ -1,0 +1,42 @@
+# ReminderRelay configuration
+# Copy to ~/.config/reminderrelay/config.yaml and fill in your values.
+
+# Base URL of your Home Assistant instance.
+# Must be reachable from this Mac (local network or via Nabu Casa).
+ha_url: "http://homeassistant.local:8123"
+
+# Long-lived access token.
+# Generate one in HA → Profile → Security → Long-Lived Access Tokens.
+ha_token: "your-long-lived-access-token-here"
+
+# How often Apple Reminders are polled for changes.
+# Minimum: 10s  Maximum: 5m  Default: 30s
+poll_interval: 30s
+
+# Map each Apple Reminders list name to a Home Assistant todo entity ID.
+# The Reminders list name is case-sensitive and must match exactly.
+# Run `just sync-once` with --verbose to discover your HA entity IDs.
+list_mappings:
+  "Shopping": "todo.shopping"
+  "Work":     "todo.work_tasks"
+  # "Personal": "todo.personal"
+
+# Optional: export traces, metrics, and logs to an OTLP-compatible collector
+# (e.g. OpenTelemetry Collector, Dash0, Grafana Alloy, Jaeger).
+# Remove or comment out this block to disable telemetry.
+# telemetry:
+#   # gRPC endpoint of your OTLP collector.
+#   otlp_endpoint: "localhost:4317"
+#
+#   # Set insecure: true for local collectors that have no TLS certificate.
+#   insecure: true
+#
+#   # Overrides the service.name attribute in traces and metrics.
+#   # Defaults to "reminderrelay".
+#   service_name: "reminderrelay"
+#
+#   # Key-value pairs sent as gRPC metadata on every OTLP request.
+#   # Equivalent to OTEL_EXPORTER_OTLP_HEADERS. Useful for authentication.
+#   headers:
+#     Authorization: "Bearer your-ingest-token"
+#     # x-dataset: "reminderrelay"
