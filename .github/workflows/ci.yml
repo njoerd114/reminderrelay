@@ -9,7 +9,7 @@ on:
 jobs:
   build-and-test:
     name: Build, Lint & Test
-    runs-on: self-hosted # cgo + EventKit framework requires macOS
+    runs-on: macos-latest # cgo + EventKit framework requires macOS
 
     steps:
       - name: Checkout
