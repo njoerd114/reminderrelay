@@ -8,7 +8,7 @@ on:
 jobs:
   release:
     name: Build & Publish Release
-    runs-on: macos-latest # cgo + EventKit framework requires macOS
+    runs-on: self-hosted # cgo + EventKit framework requires macOS
 
     permissions:
       contents: write # needed to create GitHub releases
