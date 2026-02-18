@@ -2,8 +2,8 @@
 PLAN.md
 IMPLEMENTATION_PLAN.md
 
-# Binary
-reminderrelay
+# Binary (root-level only; does not match cmd/reminderrelay/)
+/reminderrelay
 
 # Runtime data
 state.db
