@@ -1,3 +1,5 @@
+name: trace
+
 on:
   workflow_run:
     workflows:
