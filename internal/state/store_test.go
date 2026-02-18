@@ -14,7 +14,7 @@ func openTestStore(t *testing.T) *Store {
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
-	t.Cleanup(func() { s.Close() })
+	t.Cleanup(func() { _ = s.Close() })
 	return s
 }
 
@@ -50,14 +50,18 @@ func TestOpen_Idempotent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("first Open: %v", err)
 	}
-	s1.Close()
+	if err := s1.Close(); err != nil {
+		t.Fatalf("s1.Close: %v", err)
+	}
 
 	// Re-opening the same file must not fail or wipe data.
 	s2, err := Open(path)
 	if err != nil {
 		t.Fatalf("second Open: %v", err)
 	}
-	s2.Close()
+	if err := s2.Close(); err != nil {
+		t.Fatalf("s2.Close: %v", err)
+	}
 }
 
 func TestUpsertAndGetByRemindersUID(t *testing.T) {

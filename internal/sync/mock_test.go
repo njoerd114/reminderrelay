@@ -271,14 +271,3 @@ func (m *mockStore) count() int {
 	defer m.mu.Unlock()
 	return len(m.items)
 }
-
-func (m *mockStore) allItems() []*state.Item {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	var result []*state.Item
-	for _, item := range m.items {
-		cp := *item
-		result = append(result, &cp)
-	}
-	return result
-}

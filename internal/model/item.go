@@ -100,9 +100,9 @@ func (i *Item) ContentHash() string {
 		h.Write([]byte(i.DueDate.UTC().Format(time.RFC3339)))
 	}
 	h.Write([]byte("|"))
-	fmt.Fprintf(h, "%d", i.Priority)
+	_, _ = fmt.Fprintf(h, "%d", i.Priority)
 	h.Write([]byte("|"))
-	fmt.Fprintf(h, "%t", i.Completed)
+	_, _ = fmt.Fprintf(h, "%t", i.Completed)
 	return hex.EncodeToString(h.Sum(nil))
 }
 

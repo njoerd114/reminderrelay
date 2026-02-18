@@ -167,36 +167,36 @@ func (b *Bootstrap) printSummary(results []matchResult) {
 		totalHAOnly += len(r.haOnly)
 	}
 
-	fmt.Fprintf(b.writer, "\n--- First-Run Bootstrap Summary ---\n\n")
+	_, _ = fmt.Fprintf(b.writer, "\n--- First-Run Bootstrap Summary ---\n\n")
 
 	for _, r := range results {
-		fmt.Fprintf(b.writer, "List %q ↔ %s:\n", r.listName, r.entityID)
-		fmt.Fprintf(b.writer, "  Matched by title: %d\n", len(r.matched))
+		_, _ = fmt.Fprintf(b.writer, "List %q ↔ %s:\n", r.listName, r.entityID)
+		_, _ = fmt.Fprintf(b.writer, "  Matched by title: %d\n", len(r.matched))
 		for _, m := range r.matched {
-			fmt.Fprintf(b.writer, "    ✓ %s\n", m.rem.Title)
+			_, _ = fmt.Fprintf(b.writer, "    ✓ %s\n", m.rem.Title)
 		}
 		if len(r.remOnly) > 0 {
-			fmt.Fprintf(b.writer, "  Only in Reminders (will push to HA): %d\n", len(r.remOnly))
+			_, _ = fmt.Fprintf(b.writer, "  Only in Reminders (will push to HA): %d\n", len(r.remOnly))
 			for _, item := range r.remOnly {
-				fmt.Fprintf(b.writer, "    → %s\n", item.Title)
+				_, _ = fmt.Fprintf(b.writer, "    → %s\n", item.Title)
 			}
 		}
 		if len(r.haOnly) > 0 {
-			fmt.Fprintf(b.writer, "  Only in HA (will push to Reminders): %d\n", len(r.haOnly))
+			_, _ = fmt.Fprintf(b.writer, "  Only in HA (will push to Reminders): %d\n", len(r.haOnly))
 			for _, item := range r.haOnly {
-				fmt.Fprintf(b.writer, "    ← %s\n", item.Title)
+				_, _ = fmt.Fprintf(b.writer, "    ← %s\n", item.Title)
 			}
 		}
-		fmt.Fprintln(b.writer)
+		_, _ = fmt.Fprintln(b.writer)
 	}
 
-	fmt.Fprintf(b.writer, "Total: %d matched, %d Reminders→HA, %d HA→Reminders\n",
+	_, _ = fmt.Fprintf(b.writer, "Total: %d matched, %d Reminders→HA, %d HA→Reminders\n",
 		totalMatched, totalRemOnly, totalHAOnly)
 }
 
 // confirm reads a y/n response from the reader.
 func (b *Bootstrap) confirm() bool {
-	fmt.Fprintf(b.writer, "Proceed with sync? [y/N] ")
+	_, _ = fmt.Fprintf(b.writer, "Proceed with sync? [y/N] ")
 	scanner := bufio.NewScanner(b.reader)
 	if scanner.Scan() {
 		answer := strings.TrimSpace(strings.ToLower(scanner.Text()))

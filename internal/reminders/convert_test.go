@@ -68,10 +68,6 @@ func TestReminderToItem_NilOptionals(t *testing.T) {
 	if got.DueDate != nil {
 		t.Errorf("DueDate = %v, want nil", got.DueDate)
 	}
-	if got.ModifiedAt.IsZero() == false {
-		// ModifiedAt is nil in source → zero value
-		// Actually when ModifiedAt is nil, we get time.Time zero value
-	}
 	if got.Priority != model.PriorityNone {
 		t.Errorf("Priority = %v, want %v", got.Priority, model.PriorityNone)
 	}

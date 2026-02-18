@@ -1,8 +1,6 @@
 package reminders
 
 import (
-	"time"
-
 	ekreminders "github.com/BRO3886/go-eventkit/reminders"
 
 	"github.com/njoerd114/reminderrelay/internal/model"
@@ -94,9 +92,4 @@ func priorityToEventKit(p model.Priority) ekreminders.Priority {
 	default:
 		return ekreminders.PriorityNone
 	}
-}
-
-// timePtr returns a pointer to t. Convenience for constructing test fixtures.
-func timePtr(t time.Time) *time.Time {
-	return &t
 }

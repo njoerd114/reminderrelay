@@ -78,7 +78,7 @@ func Open(path string) (*Store, error) {
 	db.SetMaxOpenConns(1)
 
 	if err := migrate(db); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("applying schema: %w", err)
 	}
 
@@ -128,7 +128,7 @@ func (s *Store) GetAllItemsForList(ctx context.Context, listName string) ([]*Ite
 	if err != nil {
 		return nil, fmt.Errorf("querying items for list %q: %w", listName, err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var items []*Item
 	for rows.Next() {

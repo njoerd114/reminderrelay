@@ -16,7 +16,9 @@ func writeConfig(t *testing.T, content string) string {
 	if _, err := f.WriteString(content); err != nil {
 		t.Fatalf("writing temp config: %v", err)
 	}
-	f.Close()
+	if err := f.Close(); err != nil {
+		t.Fatalf("closing temp config: %v", err)
+	}
 	return f.Name()
 }
 

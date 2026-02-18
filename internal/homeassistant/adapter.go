@@ -62,7 +62,7 @@ func (w *haClientWrapper) CallService(ctx context.Context, domain, service strin
 	if err != nil {
 		return fmt.Errorf("execute service request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode == http.StatusBadRequest {
 		var br struct {
