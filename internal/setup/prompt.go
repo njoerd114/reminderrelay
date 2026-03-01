@@ -29,9 +29,9 @@ func NewPrompter(r io.Reader, w io.Writer) *Prompter {
 func (p *Prompter) String(label, defaultVal string) string {
 	for {
 		if defaultVal != "" {
-			fmt.Fprintf(p.w, "  %s [%s]: ", label, defaultVal)
+			_, _ = fmt.Fprintf(p.w, "  %s [%s]: ", label, defaultVal)
 		} else {
-			fmt.Fprintf(p.w, "  %s: ", label)
+			_, _ = fmt.Fprintf(p.w, "  %s: ", label)
 		}
 
 		if !p.scanner.Scan() {
@@ -43,7 +43,7 @@ func (p *Prompter) String(label, defaultVal string) string {
 			if defaultVal != "" {
 				return defaultVal
 			}
-			fmt.Fprintf(p.w, "  (required — please enter a value)\n")
+			_, _ = fmt.Fprintf(p.w, "  (required — please enter a value)\n")
 			continue
 		}
 		return val
@@ -55,7 +55,7 @@ func (p *Prompter) String(label, defaultVal string) string {
 // sensitive in the prompt label.
 func (p *Prompter) Secret(label string) string {
 	for {
-		fmt.Fprintf(p.w, "  %s: ", label)
+		_, _ = fmt.Fprintf(p.w, "  %s: ", label)
 
 		if !p.scanner.Scan() {
 			return ""
@@ -63,7 +63,7 @@ func (p *Prompter) Secret(label string) string {
 
 		val := strings.TrimSpace(p.scanner.Text())
 		if val == "" {
-			fmt.Fprintf(p.w, "  (required — please enter a value)\n")
+			_, _ = fmt.Fprintf(p.w, "  (required — please enter a value)\n")
 			continue
 		}
 		return val
@@ -78,7 +78,7 @@ func (p *Prompter) Confirm(label string, defaultYes bool) bool {
 		hint = "[Y/n]"
 	}
 
-	fmt.Fprintf(p.w, "  %s %s: ", label, hint)
+	_, _ = fmt.Fprintf(p.w, "  %s %s: ", label, hint)
 
 	if !p.scanner.Scan() {
 		return defaultYes
@@ -98,13 +98,13 @@ func (p *Prompter) Select(label string, options []string) (int, error) {
 		return -1, fmt.Errorf("no options to select from")
 	}
 
-	fmt.Fprintf(p.w, "  %s:\n", label)
+	_, _ = fmt.Fprintf(p.w, "  %s:\n", label)
 	for i, opt := range options {
-		fmt.Fprintf(p.w, "    %d) %s\n", i+1, opt)
+		_, _ = fmt.Fprintf(p.w, "    %d) %s\n", i+1, opt)
 	}
 
 	for {
-		fmt.Fprintf(p.w, "  Choice [1-%d]: ", len(options))
+		_, _ = fmt.Fprintf(p.w, "  Choice [1-%d]: ", len(options))
 
 		if !p.scanner.Scan() {
 			return -1, fmt.Errorf("no input")
@@ -113,7 +113,7 @@ func (p *Prompter) Select(label string, options []string) (int, error) {
 		val := strings.TrimSpace(p.scanner.Text())
 		n, err := strconv.Atoi(val)
 		if err != nil || n < 1 || n > len(options) {
-			fmt.Fprintf(p.w, "  (enter a number between 1 and %d)\n", len(options))
+			_, _ = fmt.Fprintf(p.w, "  (enter a number between 1 and %d)\n", len(options))
 			continue
 		}
 		return n - 1, nil
@@ -127,13 +127,13 @@ func (p *Prompter) MultiSelect(label string, options []string) ([]int, error) {
 		return nil, fmt.Errorf("no options to select from")
 	}
 
-	fmt.Fprintf(p.w, "  %s:\n", label)
+	_, _ = fmt.Fprintf(p.w, "  %s:\n", label)
 	for i, opt := range options {
-		fmt.Fprintf(p.w, "    %d) %s\n", i+1, opt)
+		_, _ = fmt.Fprintf(p.w, "    %d) %s\n", i+1, opt)
 	}
 
 	for {
-		fmt.Fprintf(p.w, "  Choices (comma-separated, e.g. 1,3): ")
+		_, _ = fmt.Fprintf(p.w, "  Choices (comma-separated, e.g. 1,3): ")
 
 		if !p.scanner.Scan() {
 			return nil, fmt.Errorf("no input")
@@ -146,7 +146,7 @@ func (p *Prompter) MultiSelect(label string, options []string) ([]int, error) {
 		for _, part := range parts {
 			n, err := strconv.Atoi(strings.TrimSpace(part))
 			if err != nil || n < 1 || n > len(options) {
-				fmt.Fprintf(p.w, "  (enter numbers between 1 and %d, separated by commas)\n", len(options))
+				_, _ = fmt.Fprintf(p.w, "  (enter numbers between 1 and %d, separated by commas)\n", len(options))
 				valid = false
 				break
 			}
