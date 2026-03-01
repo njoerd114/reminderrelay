@@ -125,3 +125,23 @@ func (c *Config) validate() error {
 
 	return nil
 }
+
+// Write serializes the configuration to YAML and writes it to the given path.
+// Parent directories are created with mode 0700; the file itself is written
+// with mode 0600 because it contains the HA access token.
+func (c *Config) Write(path string) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return fmt.Errorf("creating config directory: %w", err)
+	}
+
+	data, err := yaml.Marshal(c)
+	if err != nil {
+		return fmt.Errorf("marshalling config: %w", err)
+	}
+
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		return fmt.Errorf("writing config file %q: %w", path, err)
+	}
+
+	return nil
+}

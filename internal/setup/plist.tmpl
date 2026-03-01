@@ -9,7 +9,7 @@
     <!-- Binary & arguments -->
     <key>ProgramArguments</key>
     <array>
-        <string>/usr/local/bin/reminderrelay</string>
+        <string>{{.BinaryPath}}</string>
         <string>daemon</string>
     </array>
 
@@ -21,9 +21,9 @@
 
     <!-- Logging: stdout/stderr go to ~/Library/Logs/reminderrelay/ -->
     <key>StandardOutPath</key>
-    <string>__HOME__/Library/Logs/reminderrelay/output.log</string>
+    <string>{{.HomeDir}}/Library/Logs/reminderrelay/output.log</string>
     <key>StandardErrorPath</key>
-    <string>__HOME__/Library/Logs/reminderrelay/errors.log</string>
+    <string>{{.HomeDir}}/Library/Logs/reminderrelay/errors.log</string>
 
     <!-- Throttle restarts if the daemon crashes immediately -->
     <key>ThrottleInterval</key>

@@ -28,11 +28,11 @@ build-race:
 
 # Start the daemon (blocking)
 run: build
-    ./{{binary}} --daemon
+    ./{{binary}} daemon
 
 # Run a single sync cycle and exit
 sync-once: build
-    ./{{binary}} --sync-once
+    ./{{binary}} sync-once
 
 # ── Test & Lint ────────────────────────────────────────────────────────────────
 
@@ -61,7 +61,7 @@ fmt:
 # Build and install binary + launchd plist
 install: build
     @echo "Installing binary to {{install_bin}}..."
-    cp {{binary}} {{install_bin}}
+    sudo cp {{binary}} {{install_bin}}
     @echo "Installing launchd plist to {{plist_dest}}..."
     mkdir -p $(dirname {{plist_dest}})
     cp {{plist_src}} {{plist_dest}}

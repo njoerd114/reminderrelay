@@ -3,9 +3,17 @@
 //
 // Usage:
 //
-//	reminderrelay [--config <path>] [--daemon | --sync-once]
-//	reminderrelay --daemon          # start polling + WebSocket listener
-//	reminderrelay --sync-once       # single reconcile pass then exit
+//	reminderrelay setup                     # interactive first-run wizard
+//	reminderrelay daemon [--config <path>]  # start polling + WebSocket listener
+//	reminderrelay sync-once [--config ...]  # single reconcile pass then exit
+//	reminderrelay status                    # show daemon & config state
+//	reminderrelay uninstall [--purge]       # stop daemon and remove files
+//	reminderrelay version                   # print version
+//
+// Legacy flag-based invocation is still supported for backward compatibility:
+//
+//	reminderrelay --daemon [--config <path>] [--verbose]
+//	reminderrelay --sync-once [--config <path>] [--verbose]
 package main
 
 import (
@@ -25,10 +33,14 @@ import (
 	"github.com/njoerd114/reminderrelay/internal/config"
 	"github.com/njoerd114/reminderrelay/internal/homeassistant"
 	"github.com/njoerd114/reminderrelay/internal/reminders"
+	"github.com/njoerd114/reminderrelay/internal/setup"
 	"github.com/njoerd114/reminderrelay/internal/state"
 	syncp "github.com/njoerd114/reminderrelay/internal/sync"
 	"github.com/njoerd114/reminderrelay/internal/telemetry"
 )
+
+// version is set at build time via -ldflags "-X main.version=..."
+var version = "dev"
 
 func main() {
 	if err := run(); err != nil {
@@ -37,10 +49,93 @@ func main() {
 	}
 }
 
-// run is the entry point extracted from main so errors can propagate cleanly.
+// run dispatches to the appropriate subcommand or falls back to legacy flags.
 func run() error {
-	// --- Flags ---------------------------------------------------------------
+	// No arguments → smart usage.
+	if len(os.Args) < 2 {
+		return printUsage()
+	}
 
+	cmd := os.Args[1]
+
+	// Subcommand dispatch.
+	switch cmd {
+	case "setup":
+		return runSetup()
+	case "daemon":
+		return runSync(os.Args[2:], true)
+	case "sync-once":
+		return runSync(os.Args[2:], false)
+	case "status":
+		return runStatus()
+	case "uninstall":
+		return runUninstall(os.Args[2:])
+	case "version":
+		fmt.Println("reminderrelay", version)
+		return nil
+	}
+
+	// Legacy flag-based dispatch (--daemon, --sync-once).
+	if strings.HasPrefix(cmd, "-") {
+		return runLegacy()
+	}
+
+	return fmt.Errorf("unknown command %q — run 'reminderrelay' for usage", cmd)
+}
+
+// printUsage shows help and suggests setup if no config exists.
+func printUsage() error {
+	cfgPath, _ := config.DefaultPath()
+	_, cfgErr := os.Stat(cfgPath)
+
+	fmt.Fprintln(os.Stderr, "ReminderRelay — sync Apple Reminders ↔ Home Assistant")
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "Usage:")
+	fmt.Fprintln(os.Stderr, "  reminderrelay setup                  Interactive first-run wizard")
+	fmt.Fprintln(os.Stderr, "  reminderrelay daemon [--config ...]   Run as continuous daemon")
+	fmt.Fprintln(os.Stderr, "  reminderrelay sync-once [--config ..] Single sync pass then exit")
+	fmt.Fprintln(os.Stderr, "  reminderrelay status                  Show daemon & config state")
+	fmt.Fprintln(os.Stderr, "  reminderrelay uninstall [--purge]     Stop daemon and remove files")
+	fmt.Fprintln(os.Stderr, "  reminderrelay version                 Print version")
+	fmt.Fprintln(os.Stderr, "")
+
+	if cfgErr != nil {
+		fmt.Fprintln(os.Stderr, "No config file found. Run 'reminderrelay setup' to get started.")
+	}
+
+	os.Exit(1)
+	return nil // unreachable
+}
+
+// --- Subcommands -------------------------------------------------------------
+
+// runSetup launches the interactive setup wizard.
+func runSetup() error {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelWarn}))
+	slog.SetDefault(logger)
+
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+	defer stop()
+
+	wiz := setup.NewWizard(os.Stdin, os.Stdout, logger)
+	return wiz.Run(ctx)
+}
+
+// runSync handles both "daemon" and "sync-once" subcommands.
+func runSync(args []string, daemon bool) error {
+	fs := flag.NewFlagSet("sync", flag.ExitOnError)
+	defaultCfg, _ := config.DefaultPath()
+	cfgPath := fs.String("config", defaultCfg, "path to config.yaml")
+	verbose := fs.Bool("verbose", false, "enable debug logging")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	return startSync(*cfgPath, *verbose, daemon)
+}
+
+// runLegacy supports the old --daemon / --sync-once flag interface.
+func runLegacy() error {
 	defaultCfg, _ := config.DefaultPath()
 	cfgPath := flag.String("config", defaultCfg, "path to config.yaml")
 	daemon := flag.Bool("daemon", false, "run as a continuous daemon (polling + WebSocket)")
@@ -49,20 +144,135 @@ func run() error {
 	flag.Parse()
 
 	if !*daemon && !*syncOnce {
-		fmt.Fprintln(os.Stderr, "usage: reminderrelay [--config <path>] [--daemon | --sync-once]")
-		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, "  --daemon      run as a continuous daemon")
-		fmt.Fprintln(os.Stderr, "  --sync-once   run a single sync pass then exit")
-		os.Exit(1)
+		return printUsage()
 	}
 	if *daemon && *syncOnce {
 		return fmt.Errorf("--daemon and --sync-once are mutually exclusive")
 	}
 
+	return startSync(*cfgPath, *verbose, *daemon)
+}
+
+// runStatus prints the current daemon and configuration state.
+func runStatus() error {
+	cfgPath, _ := config.DefaultPath()
+	homeDir, _ := os.UserHomeDir()
+	dbPath, _ := state.DefaultDBPath()
+
+	fmt.Println("ReminderRelay Status")
+	fmt.Println("────────────────────")
+
+	// Daemon state.
+	if setup.IsDaemonLoaded() {
+		fmt.Println("  Daemon:    running (launchd)")
+	} else {
+		fmt.Println("  Daemon:    not loaded")
+	}
+
+	// Config state.
+	if _, err := os.Stat(cfgPath); err == nil {
+		if cfg, loadErr := config.Load(cfgPath); loadErr == nil {
+			fmt.Printf("  Config:    %s ✓\n", cfgPath)
+			fmt.Printf("  HA URL:    %s\n", cfg.HAURL)
+			fmt.Printf("  Lists:     %d mapping(s)\n", len(cfg.ListMappings))
+			fmt.Printf("  Poll:      %s\n", cfg.PollInterval)
+		} else {
+			fmt.Printf("  Config:    %s (invalid: %v)\n", cfgPath, loadErr)
+		}
+	} else {
+		fmt.Printf("  Config:    not found (%s)\n", cfgPath)
+	}
+
+	// State DB.
+	if info, err := os.Stat(dbPath); err == nil {
+		fmt.Printf("  State DB:  %s (%s)\n", dbPath, humanSize(info.Size()))
+	} else {
+		fmt.Printf("  State DB:  not found\n")
+	}
+
+	// Plist.
+	plistPath := setup.PlistPath(homeDir)
+	if _, err := os.Stat(plistPath); err == nil {
+		fmt.Printf("  Plist:     %s\n", plistPath)
+	} else {
+		fmt.Printf("  Plist:     not installed\n")
+	}
+
+	// Logs.
+	logDir := setup.LogDir(homeDir)
+	fmt.Printf("  Logs:      %s\n", logDir)
+
+	return nil
+}
+
+// runUninstall stops the daemon and removes installed files.
+func runUninstall(args []string) error {
+	fs := flag.NewFlagSet("uninstall", flag.ExitOnError)
+	purge := fs.Bool("purge", false, "also remove config, state DB, and logs")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("resolving home directory: %w", err)
+	}
+
+	fmt.Println("Uninstalling ReminderRelay...")
+
+	// 1. Unload daemon.
+	if setup.IsDaemonLoaded() {
+		fmt.Println("  Unloading daemon...")
+		if err := setup.UnloadDaemon(homeDir); err != nil {
+			fmt.Printf("  ⚠ %v\n", err)
+		} else {
+			fmt.Println("  ✓ Daemon unloaded")
+		}
+	}
+
+	// 2. Remove plist.
+	if err := setup.RemovePlist(homeDir); err != nil {
+		fmt.Printf("  ⚠ %v\n", err)
+	} else {
+		fmt.Println("  ✓ Plist removed")
+	}
+
+	// 3. Remove binary.
+	fmt.Println("  Removing binary...")
+	if err := setup.RemoveBinary(); err != nil {
+		fmt.Printf("  ⚠ %v\n", err)
+	} else {
+		fmt.Println("  ✓ Binary removed")
+	}
+
+	// 4. Optional purge.
+	if *purge {
+		fmt.Println("  Purging config, state DB, and logs...")
+		if err := setup.PurgeUserData(homeDir); err != nil {
+			fmt.Printf("  ⚠ %v\n", err)
+		} else {
+			fmt.Println("  ✓ User data purged")
+		}
+	} else {
+		fmt.Println("")
+		fmt.Println("  Config and state DB preserved.")
+		fmt.Println("  Run with --purge to also remove them:")
+		fmt.Println("    reminderrelay uninstall --purge")
+	}
+
+	fmt.Println("")
+	fmt.Println("✓ ReminderRelay uninstalled.")
+	return nil
+}
+
+// --- Sync core (shared by subcommand and legacy paths) -----------------------
+
+// startSync is the shared implementation for daemon and sync-once modes.
+func startSync(cfgPath string, verbose, daemon bool) error {
 	// --- Logger --------------------------------------------------------------
 
 	logLevel := slog.LevelInfo
-	if *verbose {
+	if verbose {
 		logLevel = slog.LevelDebug
 	}
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel}))
@@ -70,9 +280,9 @@ func run() error {
 
 	// --- Config --------------------------------------------------------------
 
-	cfg, err := config.Load(*cfgPath)
+	cfg, err := config.Load(cfgPath)
 	if err != nil {
-		return fmt.Errorf("loading config from %q: %w", *cfgPath, err)
+		return fmt.Errorf("loading config from %q: %w", cfgPath, err)
 	}
 	logger.Info("config loaded",
 		"ha_url", cfg.HAURL,
@@ -171,7 +381,7 @@ func run() error {
 
 	// --- Dispatch mode -------------------------------------------------------
 
-	if *syncOnce {
+	if !daemon {
 		logger.Info("running single sync pass")
 		stats, err := engine.RunOnce(ctx)
 		logger.Info("sync complete",
@@ -184,11 +394,25 @@ func run() error {
 		return err
 	}
 
-	// --daemon
+	// daemon mode
 	logger.Info("daemon starting", "poll_interval", cfg.PollInterval)
 	if err := engine.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
 		return fmt.Errorf("sync engine: %w", err)
 	}
 	logger.Info("shutdown complete")
 	return nil
+}
+
+// humanSize returns a human-readable file size string.
+func humanSize(bytes int64) string {
+	const unit = 1024
+	if bytes < unit {
+		return fmt.Sprintf("%d B", bytes)
+	}
+	div, exp := int64(unit), 0
+	for n := bytes / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
 }

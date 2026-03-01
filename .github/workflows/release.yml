@@ -8,7 +8,14 @@ on:
 jobs:
   release:
     name: Build & Publish Release
-    runs-on: macos-latest # cgo + EventKit framework requires macOS
+    strategy:
+      matrix:
+        include:
+          - runner: macos-latest   # arm64 (Apple Silicon)
+            goarch: arm64
+          - runner: macos-13       # amd64 (Intel)
+            goarch: amd64
+    runs-on: ${{ matrix.runner }}
 
     permissions:
       contents: write # needed to create GitHub releases
@@ -26,20 +33,25 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('go.sum') }}
+          key: ${{ runner.os }}-${{ matrix.goarch }}-go-${{ hashFiles('go.sum') }}
           restore-keys: |
-            ${{ runner.os }}-go-
+            ${{ runner.os }}-${{ matrix.goarch }}-go-
 
       - name: Build release binary
-        run: devbox run -- just build
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+          devbox run -- CGO_ENABLED=1 go build \
+            -ldflags "-s -w -X main.version=${VERSION}" \
+            -o "reminderrelay-darwin-${{ matrix.goarch }}" \
+            ./cmd/reminderrelay
 
       - name: Compute SHA256 checksum
-        run: shasum -a 256 reminderrelay > reminderrelay.sha256
+        run: shasum -a 256 "reminderrelay-darwin-${{ matrix.goarch }}" > "reminderrelay-darwin-${{ matrix.goarch }}.sha256"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            reminderrelay
-            reminderrelay.sha256
+            reminderrelay-darwin-${{ matrix.goarch }}
+            reminderrelay-darwin-${{ matrix.goarch }}.sha256
           generate_release_notes: true
