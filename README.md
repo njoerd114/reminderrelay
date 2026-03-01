@@ -42,7 +42,24 @@ cd reminderrelay
 devbox shell
 ```
 
-### 3. Create your config
+### 3. Run the setup wizard
+
+```bash
+just build
+reminderrelay setup
+```
+
+The wizard will walk you through:
+1. Connecting to your Home Assistant instance
+2. Discovering Reminders lists and HA todo entities
+3. Mapping lists to entities interactively
+4. Writing the config file
+5. Optionally installing as a background daemon
+
+On first sync you will be prompted to review and confirm bootstrap matches — nothing is written until you type **y**.
+
+<details>
+<summary>Manual config (alternative to wizard)</summary>
 
 ```bash
 mkdir -p ~/.config/reminderrelay
@@ -61,22 +78,22 @@ list_mappings:
   "Work":     "todo.work_tasks"
 ```
 
-### 4. Test connectivity (dry run)
+Then test with `just sync-once` and install with `just install`.
+
+</details>
+
+## CLI Reference
 
 ```bash
-just sync-once
+reminderrelay setup                     # interactive first-run wizard
+reminderrelay daemon [--config <path>]  # start polling + WebSocket listener
+reminderrelay sync-once [--config ...]  # single reconcile pass then exit
+reminderrelay status                    # show daemon & config state
+reminderrelay uninstall [--purge]       # stop daemon and remove files
+reminderrelay version                   # print version
 ```
 
-This does one full sync cycle and exits.  
-On first run you will be prompted to review and confirm bootstrap matches — nothing is written until you type **y**.
-
-### 5. Install as a background daemon
-
-```bash
-just install
-```
-
-That's it. ReminderRelay is now running and will restart automatically when you log in.
+Legacy flag-based invocation (`--daemon`, `--sync-once`) is still supported for backward compatibility.
 
 ## Configuration Reference
 
@@ -86,6 +103,20 @@ That's it. ReminderRelay is now running and will restart automatically when you 
 | `ha_token` | string | — | Long-lived access token |
 | `poll_interval` | duration | `30s` | How often Reminders are polled (10 s – 5 m) |
 | `list_mappings` | map | — | `"Reminders list name": "todo.entity_id"` |
+| `telemetry` | object | *(disabled)* | Optional OpenTelemetry export (see below) |
+
+### Telemetry (optional)
+
+Export traces, metrics, and logs to any OTLP-compatible collector (e.g. Grafana Alloy, Jaeger, Dash0).
+
+```yaml
+telemetry:
+  otlp_endpoint: "localhost:4317"
+  insecure: true
+  service_name: "reminderrelay"   # optional, defaults to "reminderrelay"
+  headers:                          # optional gRPC metadata
+    Authorization: "Bearer <token>"
+```
 
 ## Discovering Your HA Entity IDs
 
@@ -139,8 +170,8 @@ tail -f ~/Library/Logs/reminderrelay/errors.log
 ## Uninstall
 
 ```bash
-just uninstall                             # remove daemon + binary
-bash deployment/uninstall.sh --purge       # also remove config + DB + logs
+reminderrelay uninstall          # stop daemon + remove binary and plist
+reminderrelay uninstall --purge  # also remove config, state DB, and logs
 ```
 
 ## Troubleshooting
@@ -175,13 +206,15 @@ Decrease `poll_interval` (minimum `10s`). Real-time HA → Reminders flow is alr
 ## Architecture
 
 ```
-cmd/reminderrelay/        Entry point, signal handling, wiring
+cmd/reminderrelay/        Entry point, subcommand dispatch, wiring
 internal/config/          YAML config loader + validation
 internal/state/           SQLite repository (WAL mode)
 internal/model/           Shared Item type, priority encoding, content hash
 internal/reminders/       Apple Reminders adapter (EventKit via cgo)
 internal/homeassistant/   HA REST + WebSocket adapter, retry logic
 internal/sync/            Reconciler, bootstrap wizard, daemon engine
+internal/setup/           Interactive setup wizard, daemon install/uninstall
+internal/telemetry/       Optional OpenTelemetry OTLP gRPC export
 deployment/               launchd plist, install/uninstall scripts
 ```
 
